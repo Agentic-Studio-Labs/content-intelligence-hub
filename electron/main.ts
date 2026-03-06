@@ -1,8 +1,11 @@
 import { app, BrowserWindow } from 'electron'
 import path from 'path'
+import { startSidecar, stopSidecar } from './sidecar'
+
+let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 900,
@@ -17,14 +20,26 @@ function createWindow(): void {
   })
 
   if (process.env.ELECTRON_RENDERER_URL) {
-    win.loadURL(process.env.ELECTRON_RENDERER_URL)
+    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
   } else {
-    win.loadFile(path.join(__dirname, '../renderer/index.html'))
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(async () => {
+  try {
+    await startSidecar()
+  } catch (err) {
+    console.error('Sidecar start failed, continuing without it:', err)
+  }
+  createWindow()
+})
 
 app.on('window-all-closed', () => {
+  stopSidecar()
   app.quit()
+})
+
+app.on('before-quit', () => {
+  stopSidecar()
 })
