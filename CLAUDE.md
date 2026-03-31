@@ -45,7 +45,6 @@ The core API is single-turn Q&A (query → RAG → answer). A **chat UI** fits n
 
 ## Portfolio / publishing notes
 
-- **Canonical dev tree** may live elsewhere (e.g. `Content-Intelligence-Hub`); this clone should stay in sync via `git pull` / `git push` once the remote has code.
 - **First push to GitHub** — if you see `GH007` / email privacy errors, fix under GitHub **Settings → Emails** (allow the push or use your `users.noreply.github.com` address in `git config user.email`).
 
 ## Tech stack
@@ -60,6 +59,4 @@ The core API is single-turn Q&A (query → RAG → answer). A **chat UI** fits n
 - Python: type hints, pytest, ruff
 - Prefer small, focused commits
 
-## Deeper design reference
 
-If present in the tree: `docs/plans/2026-03-06-macos-app-design.md` — full architecture design.
