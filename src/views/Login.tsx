@@ -33,7 +33,19 @@ export default function Login() {
     setMessage("");
     try {
       const response = await requestMagicLink(email);
-      setMessage(`Magic link issued for ${response.email}.`);
+      let extra = "";
+      if (response.delivery === "email") {
+        extra = " Check your inbox for the sign-in link.";
+      } else if (response.delivery === "email_failed") {
+        extra =
+          " We could not send email—try again or contact support. If you have a dev token below, use it.";
+      } else if (response.dev_magic_link_token) {
+        extra = " Use the development token below to sign in.";
+      } else {
+        extra =
+          " If your address is allowed, check your email. Otherwise contact an admin.";
+      }
+      setMessage(`Magic link issued for ${response.email}.${extra}`);
       if (response.dev_magic_link_token) {
         setToken(response.dev_magic_link_token);
       }

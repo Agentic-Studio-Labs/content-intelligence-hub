@@ -10,6 +10,8 @@ from shared.auth import (
     revoke_session,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -37,10 +39,25 @@ class MagicLinkCompleteRequest(BaseModel):
 
 @router.post("/magic-link/start")
 def start_magic_link(req: MagicLinkStartRequest, conn=Depends(get_db)):
+    norm = normalize_email(str(req.email))
     token = issue_magic_link_or_none(conn, str(req.email))
-    body: dict = {"status": "sent", "email": normalize_email(str(req.email))}
-    if token and magic_link_token_may_appear_in_json():
-        body["dev_magic_link_token"] = token
+    body: dict = {"status": "sent", "email": norm}
+    if token:
+        mailed = send_magic_link_email(norm, token)
+        if mailed:
+            body["delivery"] = "email"
+        elif cloud_settings.resend_api_key:
+            body["delivery"] = "email_failed"
+            logger.error(
+                "Magic link email failed for %s (token still valid until used)", norm
+            )
+        elif not magic_link_token_may_appear_in_json():
+            logger.warning(
+                "Magic link issued for %s but email not configured (set CIH_CLOUD_RESEND_API_KEY)",
+                norm,
+            )
+        if magic_link_token_may_appear_in_json():
+            body["dev_magic_link_token"] = token
     return body
 
 

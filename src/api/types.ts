@@ -109,6 +109,8 @@ export interface SessionToken {
 export interface MagicLinkStartResponse {
   status: "sent";
   email: string;
+  /** "email" | "email_failed" when Resend is configured; omitted otherwise */
+  delivery?: string;
   dev_magic_link_token?: string;
 }
 
