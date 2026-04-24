@@ -51,6 +51,24 @@ variable "tasks_queue_name" {
   default = "cih-job-queue"
 }
 
+variable "manage_cloud_tasks_queue" {
+  type        = bool
+  default     = true
+  description = "Set false if the queue already exists in GCP and you manage it outside Terraform (avoids 409). Alternatively: terraform import to adopt the existing queue."
+}
+
+variable "cloud_run_api_image" {
+  type        = string
+  default     = ""
+  description = "Container image for cih-api. Empty = us-docker.pkg.dev/PROJECT_ID/cih/cih-api:latest (must exist in Artifact Registry). Use gcr.io/cloudrun/hello only to bootstrap an empty service, then deploy the real image."
+}
+
+variable "cloud_run_worker_image" {
+  type        = string
+  default     = ""
+  description = "Container image for cih-worker. Empty = us-docker.pkg.dev/PROJECT_ID/cih/cih-worker:latest."
+}
+
 variable "tasks_invoker_service_account_email" {
   type        = string
   default     = ""
@@ -61,4 +79,16 @@ variable "grant_worker_invoker_to_tasks_sa" {
   type        = bool
   default     = false
   description = "When true and tasks_invoker_service_account_email is set, grant roles/run.invoker on the worker to that SA only."
+}
+
+variable "resend_secret_id" {
+  type        = string
+  default     = ""
+  description = "Secret Manager secret id (short name) for the Resend API key. When set, Terraform grants secretAccessor on that secret to the Cloud Run API runtime service account."
+}
+
+variable "cloud_run_api_service_account_email" {
+  type        = string
+  default     = ""
+  description = "Runtime service account for cih-api (Cloud Run). Leave empty to use the project default compute SA (PROJECT_NUMBER-compute@developer.gserviceaccount.com)."
 }
