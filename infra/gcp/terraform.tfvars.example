@@ -12,6 +12,7 @@ region     = "us-central1"
 # tasks_invoker_service_account_email     = "YOUR-TASKS-SA@content-intel-hub-prod.iam.gserviceaccount.com"
 
 # Resend magic-link: secret must already exist in Secret Manager (create key + version in Console).
-# resend_secret_id = "your-secret-short-name"
+# Short id is the name after .../secrets/ — e.g. CIH_CLOUD_RESEND_API_KEY
+# resend_secret_id = "CIH_CLOUD_RESEND_API_KEY"
 # If cih-api uses a custom runtime SA, set it (otherwise Terraform uses default compute SA):
 # cloud_run_api_service_account_email = "cih-api@content-intel-hub-prod.iam.gserviceaccount.com"
