@@ -8,7 +8,7 @@ Marketing **content intelligence** for operators: search, library, detail views,
 
 **Secondary / dev path:** **local FastAPI sidecar** on SQLite + FTS5 + sqlite-vss + local embeddings — useful for development and offline experimentation.
 
-Public GitHub remote for CI: `Agentic-Studio-Labs/marketing-rag-assistant` (local folder name may differ).
+Public GitHub remote for CI: [`Agentic-Studio-Labs/content-intelligence-hub`](https://github.com/Agentic-Studio-Labs/content-intelligence-hub) (local folder name may differ).
 
 ## Repository map
 
