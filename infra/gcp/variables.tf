@@ -51,6 +51,24 @@ variable "tasks_queue_name" {
   default = "cih-job-queue"
 }
 
+variable "manage_cloud_tasks_queue" {
+  type        = bool
+  default     = true
+  description = "Set false if the queue already exists in GCP and you manage it outside Terraform (avoids 409). Alternatively: terraform import to adopt the existing queue."
+}
+
+variable "cloud_run_api_image" {
+  type        = string
+  default     = ""
+  description = "Container image for cih-api. Empty = us-docker.pkg.dev/PROJECT_ID/cih/cih-api:latest (must exist in Artifact Registry). Use gcr.io/cloudrun/hello only to bootstrap an empty service, then deploy the real image."
+}
+
+variable "cloud_run_worker_image" {
+  type        = string
+  default     = ""
+  description = "Container image for cih-worker. Empty = us-docker.pkg.dev/PROJECT_ID/cih/cih-worker:latest."
+}
+
 variable "tasks_invoker_service_account_email" {
   type        = string
   default     = ""

@@ -38,6 +38,46 @@ terraform plan
 
 Set **`grant_worker_invoker_to_tasks_sa=true`** and the tasks SA email after you create that account in IAM (or manage invoker bindings manually in Console).
 
+## Partial apply / common errors
+
+### `409 Queue already exists`
+
+The queue **`tasks_queue_name`** (default **`cih-job-queue`**) is already in the project. Either:
+
+- **Import** it into state (region must match **`var.region`**):
+
+  ```bash
+  terraform import 'google_cloud_tasks_queue.jobs[0]' \
+    "projects/PROJECT_ID/locations/REGION/queues/QUEUE_NAME"
+  ```
+
+  Example: `projects/content-intel-hub-prod/locations/us-central1/queues/cih-job-queue`
+
+- **Or** set **`manage_cloud_tasks_queue = false`** in **`terraform.tfvars`** so Terraform does not try to create the queue.
+
+### `Image ... not found` (Cloud Run)
+
+Artifact Registry must contain **`cih/cih-api:latest`** and **`cih/cih-worker:latest`**, or you must override images.
+
+1. Create repository **`cih`** (Artifact Registry, Docker) if needed.
+2. From repo root, build and push (adjust `PROJECT` / region):
+
+   ```bash
+   gcloud auth configure-docker us-docker.pkg.dev
+   docker build -f cloud/Dockerfile.api   -t us-docker.pkg.dev/PROJECT/cih/cih-api:latest .
+   docker build -f cloud/Dockerfile.worker -t us-docker.pkg.dev/PROJECT/cih/cih-worker:latest .
+   docker push us-docker.pkg.dev/PROJECT/cih/cih-api:latest
+   docker push us-docker.pkg.dev/PROJECT/cih/cih-worker:latest
+   ```
+
+3. Run **`terraform apply`** again.
+
+**Bootstrap only:** set **`cloud_run_api_image`** and **`cloud_run_worker_image`** to **`gcr.io/cloudrun/hello`** in **`terraform.tfvars`** so the services are created, then deploy your real images (replace the service revision via Cloud Build, **`gcloud run deploy`**, or by removing the overrides and pushing **`latest`** before the next apply).
+
+### Failed Cloud Run revision stuck in GCP
+
+If **`cih-api`** / **`cih-worker`** exist but the revision never became ready, delete the service in the console (or **`gcloud run services delete`**) before re-applying, or update the service to a valid image with **`gcloud run deploy`**.
+
 ## Legacy note
 
 V1 files were minimal; re-run **`terraform plan`** before apply — SQL **`ssl_mode`** and bucket **PAP** may update existing resources.

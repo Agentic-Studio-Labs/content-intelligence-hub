@@ -25,6 +25,17 @@ locals {
     ? var.cloud_run_api_service_account_email
     : "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
   )
+
+  cloud_run_api_container_image = (
+    var.cloud_run_api_image != ""
+    ? var.cloud_run_api_image
+    : "us-docker.pkg.dev/${var.project_id}/cih/cih-api:latest"
+  )
+  cloud_run_worker_container_image = (
+    var.cloud_run_worker_image != ""
+    ? var.cloud_run_worker_image
+    : "us-docker.pkg.dev/${var.project_id}/cih/cih-worker:latest"
+  )
 }
 
 resource "google_storage_bucket" "artifacts" {
@@ -88,7 +99,7 @@ resource "google_cloud_run_v2_service" "api" {
 
   template {
     containers {
-      image = "us-docker.pkg.dev/${var.project_id}/cih/cih-api:latest"
+      image = local.cloud_run_api_container_image
     }
   }
 }
@@ -99,7 +110,7 @@ resource "google_cloud_run_v2_service" "worker" {
 
   template {
     containers {
-      image = "us-docker.pkg.dev/${var.project_id}/cih/cih-worker:latest"
+      image = local.cloud_run_worker_container_image
     }
   }
 }
