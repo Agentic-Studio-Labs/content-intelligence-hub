@@ -1,0 +1,49 @@
+from pathlib import Path
+
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    model_config = {"env_prefix": "CIH_CLOUD_"}
+
+    port: int = 8484
+    data_dir: Path = Path(__file__).resolve().parents[1] / ".data"
+    database_path: Path | None = None
+    storage_dir: Path | None = None
+
+    magic_link_secret: str = "dev-magic-link-secret"
+    session_secret: str = "dev-session-secret"
+    session_ttl_hours: int = 24
+    magic_link_ttl_minutes: int = 15
+
+    default_workspace_name: str = "Default Workspace"
+    allowed_email_domains: str = "*"
+
+    auth_mode: str = "magic_link"
+    upload_mode: str = "cloud"
+
+    anthropic_api_key: str = ""
+    anthropic_secret_ref: str = "anthropic_primary"
+    artifact_bucket: str = "cih-artifacts-dev"
+    queue_mode: str = "inline"
+    gcp_project_id: str = "local-dev"
+
+    @property
+    def db_path(self) -> Path:
+        return self.database_path or (self.data_dir / "cloud.db")
+
+    @property
+    def object_root(self) -> Path:
+        return self.storage_dir or (self.data_dir / "objects")
+
+    @property
+    def models_dir(self) -> Path:
+        return self.data_dir / "models"
+
+    def ensure_dirs(self) -> None:
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.object_root.mkdir(parents=True, exist_ok=True)
+        self.models_dir.mkdir(parents=True, exist_ok=True)
+
+
+settings = Settings()

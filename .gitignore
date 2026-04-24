@@ -17,6 +17,7 @@ out/
 .idea/
 .vscode/
 *.swp
+.worktrees/
 
 # OS
 .DS_Store
