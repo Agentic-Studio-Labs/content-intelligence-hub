@@ -18,6 +18,7 @@ resource "google_storage_bucket" "artifacts" {
   name                        = var.artifact_bucket_name
   location                    = var.region
   uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
 }
 
 resource "google_sql_database_instance" "cloud_sql" {
@@ -25,13 +26,24 @@ resource "google_sql_database_instance" "cloud_sql" {
   region           = var.region
   database_version = "POSTGRES_15"
 
+  deletion_protection = var.db_deletion_protection
+
   settings {
-    tier = "db-f1-micro"
+    tier = var.db_tier
+
+    ip_configuration {
+      ipv4_enabled = var.db_public_ipv4_enabled
+      ssl_mode     = var.db_ssl_mode
+    }
+
+    backup_configuration {
+      enabled = var.db_backup_enabled
+    }
   }
 }
 
 resource "google_cloud_tasks_queue" "jobs" {
-  name     = "cih-job-queue"
+  name     = var.tasks_queue_name
   location = var.region
 }
 
@@ -63,4 +75,16 @@ resource "google_cloud_run_v2_service" "worker" {
       image = "us-docker.pkg.dev/${var.project_id}/cih/cih-worker:latest"
     }
   }
+}
+
+# Grant the Cloud Tasks OIDC service account permission to call the worker only
+# (remove any roles/run.invoker binding for allUsers on the worker in Cloud Console if present).
+resource "google_cloud_run_v2_service_iam_member" "worker_invoker_tasks_sa" {
+  count = var.grant_worker_invoker_to_tasks_sa ? 1 : 0
+
+  project  = var.project_id
+  location = google_cloud_run_v2_service.worker.location
+  name     = google_cloud_run_v2_service.worker.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${var.tasks_invoker_service_account_email}"
 }

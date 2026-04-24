@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 
 from shared.db import close_pool, managed_connection, open_pool
+from shared.worker_oidc import require_cloud_tasks_oidc
 from workers.ingest_worker import process_ingest_job
 from workers.repurpose_worker import process_repurpose_job
 
@@ -23,7 +24,11 @@ def health():
 
 
 @app.post("/tasks/jobs/{job_id}")
-def process_job(job_id: str, body: dict):
+def process_job(
+    job_id: str,
+    body: dict,
+    _: None = Depends(require_cloud_tasks_oidc),
+):
     job_type = body.get("job_type")
     with managed_connection() as conn:
         if job_type == "repurpose":

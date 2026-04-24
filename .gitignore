@@ -25,3 +25,8 @@ out/
 
 # Environment
 .env
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*

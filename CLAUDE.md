@@ -22,6 +22,8 @@ Public GitHub remote for CI: [`Agentic-Studio-Labs/content-intelligence-hub`](ht
 | `cloud/` | Control-plane API, worker app, Postgres, GCS, task enqueue |
 | `infra/gcp/` | Terraform for GCP resources |
 
+**Cloud hardening (summary):** worker verifies **Cloud Tasks OIDC** on job endpoints; **`CIH_CLOUD_ENVIRONMENT=production`** rejects dev crypto defaults and `SKIP_WORKER_OIDC`; CORS is env-driven; Terraform defaults include **GCS public access prevention**, **SQL `ENCRYPTED_ONLY`**, optional **Run invoker** binding for the tasks SA only (`infra/gcp/README.md`).
+
 ## Current product surface
 
 - Dashboard, library, content detail + similar content, generated library, settings.
