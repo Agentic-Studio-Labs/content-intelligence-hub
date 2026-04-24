@@ -14,6 +14,19 @@ provider "google" {
   region  = var.region
 }
 
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
+locals {
+  # Cloud Run default runtime SA when template.service_account is unset.
+  cloud_run_api_sa = (
+    var.cloud_run_api_service_account_email != ""
+    ? var.cloud_run_api_service_account_email
+    : "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+  )
+}
+
 resource "google_storage_bucket" "artifacts" {
   name                        = var.artifact_bucket_name
   location                    = var.region
@@ -53,6 +66,20 @@ resource "google_secret_manager_secret" "anthropic" {
   replication {
     auto {}
   }
+}
+
+# Resend API key: create the secret and secret versions outside Terraform, then set
+# resend_secret_id to that secret's id. Grants the API Cloud Run runtime SA read access.
+data "google_secret_manager_secret" "resend" {
+  count     = var.resend_secret_id != "" ? 1 : 0
+  secret_id = var.resend_secret_id
+}
+
+resource "google_secret_manager_secret_iam_member" "api_resend_accessor" {
+  count     = var.resend_secret_id != "" ? 1 : 0
+  secret_id = data.google_secret_manager_secret.resend[0].id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.cloud_run_api_sa}"
 }
 
 resource "google_cloud_run_v2_service" "api" {

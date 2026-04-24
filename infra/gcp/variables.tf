@@ -62,3 +62,15 @@ variable "grant_worker_invoker_to_tasks_sa" {
   default     = false
   description = "When true and tasks_invoker_service_account_email is set, grant roles/run.invoker on the worker to that SA only."
 }
+
+variable "resend_secret_id" {
+  type        = string
+  default     = ""
+  description = "Secret Manager secret id (short name) for the Resend API key. When set, Terraform grants secretAccessor on that secret to the Cloud Run API runtime service account."
+}
+
+variable "cloud_run_api_service_account_email" {
+  type        = string
+  default     = ""
+  description = "Runtime service account for cih-api (Cloud Run). Leave empty to use the project default compute SA (PROJECT_NUMBER-compute@developer.gserviceaccount.com)."
+}
