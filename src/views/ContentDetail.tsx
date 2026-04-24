@@ -106,56 +106,65 @@ export default function ContentDetail() {
     );
 
   return (
-    <div className="max-w-6xl mx-auto flex gap-6">
-      <div className="flex-1 min-w-0">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
+      <div className="min-w-0 flex-1 space-y-6">
         <button
+          type="button"
           onClick={() => navigate(-1)}
-          className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block"
+          className="mb-0 inline-block text-sm text-muted-foreground hover:text-foreground"
         >
           &larr; Back
         </button>
-        <h1 className="text-2xl font-semibold mb-2">{content.title}</h1>
-        <div className="flex gap-2 mb-4 flex-wrap">
-          <Tag>{content.content_type}</Tag>
-          <Tag>{content.persona}</Tag>
-          <Tag>{content.funnel_stage}</Tag>
-          {content.performance_score > 0 && (
-            <Tag>{content.performance_score}%</Tag>
+
+        <article className="max-w-[65ch] space-y-4">
+          <h1 className="text-balance text-2xl font-semibold tracking-tight">
+            {content.title}
+          </h1>
+          <div className="flex flex-wrap gap-2">
+            <Tag>{content.content_type}</Tag>
+            <Tag>{content.persona}</Tag>
+            <Tag>{content.funnel_stage}</Tag>
+            {content.performance_score > 0 && (
+              <Tag>{content.performance_score}%</Tag>
+            )}
+          </div>
+          {content.summary && (
+            <p className="text-sm italic leading-relaxed text-muted-foreground">
+              {content.summary}
+            </p>
           )}
-        </div>
-        {content.summary && (
-          <p className="text-muted-foreground text-sm mb-4 italic">
-            {content.summary}
-          </p>
-        )}
-        <div className="whitespace-pre-wrap text-sm leading-relaxed">
-          {content.body}
-        </div>
+          <div className="rounded-lg border border-border/80 bg-muted/10 px-4 py-4 sm:px-5 sm:py-5">
+            <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+              {content.body}
+            </div>
+          </div>
+        </article>
 
         {activeJob && (
-          <div className="mt-6 rounded-lg border border-border bg-muted/20 p-4">
+          <div className="max-w-[65ch] rounded-lg border border-border bg-muted/20 p-4">
             <p className="text-sm font-medium">Repurpose Job</p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="mt-1 text-xs text-muted-foreground">
               Status:{" "}
               <span className="font-medium text-foreground">
                 {activeJob.status}
               </span>
             </p>
             {activeJob.error && (
-              <p className="text-xs text-red-500 mt-2">{activeJob.error}</p>
+              <p className="mt-2 text-xs text-red-500">{activeJob.error}</p>
             )}
           </div>
         )}
 
         {repurposeResult && repurposeResult.success && (
-          <div className="mt-8 border-t border-border pt-6">
-            <h2 className="text-lg font-semibold mb-3">Generated Content</h2>
-            <div className="flex gap-1 mb-4">
+          <div className="max-w-none space-y-4 border-t border-border pt-8">
+            <h2 className="text-lg font-semibold">Generated Content</h2>
+            <div className="flex flex-wrap gap-2">
               {Object.keys(repurposeResult.generated_content).map((fmt) => (
                 <button
+                  type="button"
                   key={fmt}
                   onClick={() => setActiveTab(fmt)}
-                  className={`px-3 py-1.5 text-sm rounded-md ${activeTab === fmt ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}
+                  className={`rounded-md px-3 py-1.5 text-sm ${activeTab === fmt ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}
                 >
                   {fmt}
                   {repurposeResult.quality_scores[fmt] != null && (
@@ -167,8 +176,8 @@ export default function ContentDetail() {
               ))}
             </div>
             {activeTab && repurposeResult.generated_content[activeTab] && (
-              <div className="border border-border rounded-lg p-4 bg-muted/20">
-                <pre className="whitespace-pre-wrap text-sm font-sans">
+              <div className="rounded-lg border border-border bg-muted/20 p-4 sm:p-5">
+                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
                   {repurposeResult.generated_content[activeTab]}
                 </pre>
               </div>
@@ -176,15 +185,15 @@ export default function ContentDetail() {
           </div>
         )}
         {repurposeResult && !repurposeResult.success && (
-          <div className="mt-4 text-red-500 text-sm">
+          <div className="text-sm text-red-500">
             Errors: {repurposeResult.errors.join(", ")}
           </div>
         )}
       </div>
 
-      <div className="w-72 flex-shrink-0 space-y-6">
-        <div className="border border-border rounded-lg p-4">
-          <h3 className="font-semibold mb-3">Repurpose Content</h3>
+      <aside className="w-full shrink-0 space-y-6 lg:w-80 lg:sticky lg:top-6 lg:self-start">
+        <div className="rounded-lg border border-border p-4 sm:p-5">
+          <h3 className="mb-3 font-semibold">Repurpose Content</h3>
           <div className="mb-4">
             <p className="text-xs font-medium text-muted-foreground mb-2">
               Formats
@@ -226,6 +235,7 @@ export default function ContentDetail() {
             </select>
           </div>
           <button
+            type="button"
             onClick={handleRepurpose}
             disabled={repurposing || selectedFormats.length === 0}
             className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
@@ -234,20 +244,24 @@ export default function ContentDetail() {
           </button>
         </div>
         {similar.length > 0 && (
-          <div className="border border-border rounded-lg p-4">
-            <h3 className="font-semibold mb-3 text-sm">Similar Content</h3>
-            {similar.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => navigate(`/content/${s.id}`)}
-                className="block text-left text-sm text-muted-foreground hover:text-foreground mb-2 w-full"
-              >
-                {s.title}
-              </button>
-            ))}
+          <div className="rounded-lg border border-border p-4 sm:p-5">
+            <h3 className="mb-3 text-sm font-semibold">Similar Content</h3>
+            <ul className="space-y-1">
+              {similar.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/content/${s.id}`)}
+                    className="w-full rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <span className="line-clamp-2">{s.title}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
-      </div>
+      </aside>
     </div>
   );
 }

@@ -1,9 +1,10 @@
 {
   "name": "content-intelligence-hub",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "",
   "main": "out/main/index.js",
   "scripts": {
+    "postinstall": "node -e \"const{execSync}=require('child_process');try{execSync('/usr/libexec/PlistBuddy -c \\\"Set :CFBundleName Content Intelligence Hub\\\" node_modules/electron/dist/Electron.app/Contents/Info.plist');execSync('/usr/libexec/PlistBuddy -c \\\"Set :CFBundleDisplayName Content Intelligence Hub\\\" node_modules/electron/dist/Electron.app/Contents/Info.plist')}catch(e){}\"",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
@@ -20,6 +21,14 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.1"
+  },
+  "build": {
+    "appId": "com.cih.content-intelligence-hub",
+    "productName": "Content Intelligence Hub",
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.productivity"
+    }
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
