@@ -2,8 +2,8 @@ import logging
 from pathlib import Path
 from typing import Callable
 
+from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileSystemEvent
 
 from sources.local_files import LocalFileSource
 
@@ -31,25 +31,42 @@ class _ContentHandler(FileSystemEventHandler):
 
 
 class ContentWatcher:
-    def __init__(self, watched_dirs: list[str], on_file_changed: Callable[[str], None]):
+    def __init__(
+        self,
+        watched_dirs: list[str],
+        on_file_changed: Callable[[str], None],
+        *,
+        recursive: bool = True,
+    ):
         self.watched_dirs = watched_dirs
         self.on_file_changed = on_file_changed
+        self._recursive = recursive
         self._observer = Observer()
         self._handler = _ContentHandler(on_file_changed)
+        self._started = False
 
     def start(self) -> None:
+        scheduled = 0
         for dir_path in self.watched_dirs:
-            if Path(dir_path).is_dir():
-                self._observer.schedule(self._handler, dir_path, recursive=False)
-                logger.info(f"Watching: {dir_path}")
-        self._observer.start()
+            p = Path(dir_path)
+            if p.is_dir():
+                self._observer.schedule(self._handler, str(p.resolve()), recursive=self._recursive)
+                scheduled += 1
+                logger.info("Watching (recursive=%s): %s", self._recursive, p)
+        if scheduled:
+            self._observer.start()
+            self._started = True
 
     def stop(self) -> None:
+        if not self._started:
+            return
         self._observer.stop()
         self._observer.join(timeout=5)
+        self._started = False
 
     def update_dirs(self, new_dirs: list[str]) -> None:
         self.stop()
         self.watched_dirs = new_dirs
         self._observer = Observer()
+        self._handler = _ContentHandler(self.on_file_changed)
         self.start()
