@@ -18,6 +18,7 @@ out/
 .vscode/
 *.swp
 .worktrees/
+.claude/
 
 # OS
 .DS_Store
