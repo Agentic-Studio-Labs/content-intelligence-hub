@@ -35,7 +35,7 @@ Public GitHub remote for CI: [`Agentic-Studio-Labs/content-intelligence-hub`](ht
 ## Gaps / caveats
 
 - Dashboard uses **`/api/agents/query`** (via `api.discover`) when **`VITE_API_MODE` is not `cloud`**; cloud mode still uses **`/api/content/search`**.
-- Watched folders + background watcher not fully wired at startup (local settings story).
+- **Local sidecar:** `watched_folders` are loaded from SQLite on startup; **`ContentWatcher`** (watchdog) ingests supported files on create/modify; **`PUT /api/settings`** restarts the watcher when folders change (`sidecar/api.py`, `sidecar/watcher.py`).
 - Production hardening (SQL access pattern, OAuth) is incremental.
 
 ## Dev workflow

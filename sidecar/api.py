@@ -1,6 +1,7 @@
 import json
 import logging
 import sqlite3
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -10,22 +11,31 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from config import settings
-from db import get_connection, init_schema, get_content_by_id, insert_content
-from search import (
-    keyword_search, hybrid_search, list_all_content,
-    get_content_stats, get_similar_content, get_top_performers,
-)
-from generated import (
-    save_generated_content, get_generated_by_id,
-    list_generated_content, keyword_search_generated, get_generated_stats,
-)
+from db import get_connection, get_content_by_id, init_schema
 from embeddings import EmbeddingModel
-from ingest import ingest_file, ingest_directory
+from generated import (
+    get_generated_by_id,
+    get_generated_stats,
+    keyword_search_generated,
+    list_generated_content,
+    save_generated_content,
+)
+from ingest import ingest_directory, ingest_file
+from search import (
+    get_content_stats,
+    get_similar_content,
+    hybrid_search,
+    list_all_content,
+)
+from watcher import ContentWatcher
 
 logger = logging.getLogger(__name__)
 
 _conn: sqlite3.Connection | None = None
 _embedding_model: EmbeddingModel | None = None
+_watcher: ContentWatcher | None = None
+_watcher_lock = threading.Lock()
+_ingest_lock = threading.Lock()
 
 
 def _get_conn() -> sqlite3.Connection:
@@ -41,6 +51,7 @@ def _get_conn() -> sqlite3.Connection:
 def _init_vss(conn: sqlite3.Connection) -> None:
     try:
         import sqlite_vss
+
         conn.enable_load_extension(True)
         sqlite_vss.load(conn)
         conn.enable_load_extension(False)
@@ -59,13 +70,71 @@ def _get_embedding_model() -> EmbeddingModel:
     return _embedding_model
 
 
+def _hydrate_settings_from_db(conn: sqlite3.Connection) -> None:
+    """Load persisted keys from SQLite into in-process settings (startup / tests)."""
+    row = conn.execute(
+        "SELECT value FROM app_settings WHERE key = ?",
+        ("watched_folders",),
+    ).fetchone()
+    if row and row[0]:
+        try:
+            parsed = json.loads(row[0])
+            if isinstance(parsed, list):
+                settings.watched_folders = [str(x) for x in parsed]
+        except json.JSONDecodeError:
+            logger.warning("Invalid watched_folders JSON in app_settings")
+    row = conn.execute(
+        "SELECT value FROM app_settings WHERE key = ?",
+        ("anthropic_api_key",),
+    ).fetchone()
+    if row and row[0]:
+        settings.anthropic_api_key = row[0]
+
+
+def _on_watched_file_changed(path: str) -> None:
+    try:
+        with _ingest_lock:
+            conn = _get_conn()
+            embed = _get_embedding_model()
+            ingest_file(conn, path, embed)
+    except Exception:
+        logger.exception("Watched file ingest failed: %s", path)
+
+
+def _start_watcher() -> None:
+    global _watcher
+    with _watcher_lock:
+        if _watcher is not None:
+            _watcher.stop()
+            _watcher = None
+        _watcher = ContentWatcher(
+            list(settings.watched_folders),
+            _on_watched_file_changed,
+            recursive=True,
+        )
+        _watcher.start()
+
+
+def _stop_watcher() -> None:
+    global _watcher
+    with _watcher_lock:
+        if _watcher is not None:
+            _watcher.stop()
+            _watcher = None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    _get_conn()
+    global _conn
+    conn = _get_conn()
+    _hydrate_settings_from_db(conn)
+    _start_watcher()
     logger.info(f"Sidecar ready on port {settings.port}")
     yield
+    _stop_watcher()
     if _conn:
         _conn.close()
+        _conn = None
 
 
 app = FastAPI(title="Content Intelligence Hub Sidecar", lifespan=lifespan)
@@ -100,10 +169,15 @@ def api_list_content(
 ):
     conn = _get_conn()
     filters = {}
-    if content_type: filters["content_type"] = content_type
-    if persona: filters["persona"] = persona
-    if funnel_stage: filters["funnel_stage"] = funnel_stage
-    return list_all_content(conn, filters=filters or None, limit=limit, offset=offset, search_query=search)
+    if content_type:
+        filters["content_type"] = content_type
+    if persona:
+        filters["persona"] = persona
+    if funnel_stage:
+        filters["funnel_stage"] = funnel_stage
+    return list_all_content(
+        conn, filters=filters or None, limit=limit, offset=offset, search_query=search
+    )
 
 
 @app.get("/api/content/stats")
@@ -149,22 +223,30 @@ class QueryRequest(BaseModel):
 def api_repurpose(req: RepurposeRequest):
     from agents.repurpose_agent import repurpose_content
     from providers.anthropic import AnthropicProvider
+
     if not settings.anthropic_api_key:
         raise HTTPException(status_code=400, detail="Anthropic API key not configured")
     provider = AnthropicProvider(api_key=settings.anthropic_api_key, model=settings.llm_model)
     conn = _get_conn()
     result = repurpose_content(
-        conn=conn, provider=provider,
-        content_id=req.content_id, formats=req.formats,
-        tone=req.tone, custom_instructions=req.custom_instructions,
+        conn=conn,
+        provider=provider,
+        content_id=req.content_id,
+        formats=req.formats,
+        tone=req.tone,
+        custom_instructions=req.custom_instructions,
     )
     if req.save and result.get("success"):
         source = get_content_by_id(conn, req.content_id)
         source_title = source["title"] if source else ""
         for fmt, body in result.get("generated_content", {}).items():
             gen_id = save_generated_content(
-                conn, source_content_id=req.content_id, source_title=source_title,
-                format=fmt, tone=req.tone, body=body,
+                conn,
+                source_content_id=req.content_id,
+                source_title=source_title,
+                format=fmt,
+                tone=req.tone,
+                body=body,
                 quality_score=result.get("quality_scores", {}).get(fmt),
             )
             result.setdefault("saved_ids", {})[fmt] = gen_id
@@ -175,12 +257,15 @@ def api_repurpose(req: RepurposeRequest):
 def api_query(req: QueryRequest):
     from agents.query_agent import discover_content
     from providers.anthropic import AnthropicProvider
+
     if not settings.anthropic_api_key:
         raise HTTPException(status_code=400, detail="Anthropic API key not configured")
     provider = AnthropicProvider(api_key=settings.anthropic_api_key, model=settings.llm_model)
     return discover_content(
-        conn=_get_conn(), provider=provider,
-        embedding_model=_get_embedding_model(), query=req.query,
+        conn=_get_conn(),
+        provider=provider,
+        embedding_model=_get_embedding_model(),
+        query=req.query,
     )
 
 
@@ -192,8 +277,10 @@ def api_list_generated(
     offset: int = 0,
 ):
     filters = {}
-    if format: filters["format"] = format
-    if tone: filters["tone"] = tone
+    if format:
+        filters["format"] = format
+    if tone:
+        filters["tone"] = tone
     return list_generated_content(_get_conn(), filters=filters or None, limit=limit, offset=offset)
 
 
@@ -221,18 +308,19 @@ class IngestRequest(BaseModel):
 
 @app.post("/api/ingest")
 def api_ingest(req: IngestRequest):
-    conn = _get_conn()
-    embed = _get_embedding_model()
-    results = []
-    for path in req.paths:
-        p = Path(path)
-        if p.is_dir():
-            results.extend(ingest_directory(conn, str(p), embed))
-        elif p.is_file():
-            result = ingest_file(conn, str(p), embed)
-            if result:
-                results.append(result)
-    return {"ingested": len(results), "items": results}
+    with _ingest_lock:
+        conn = _get_conn()
+        embed = _get_embedding_model()
+        results = []
+        for path in req.paths:
+            p = Path(path)
+            if p.is_dir():
+                results.extend(ingest_directory(conn, str(p), embed))
+            elif p.is_file():
+                result = ingest_file(conn, str(p), embed)
+                if result:
+                    results.append(result)
+        return {"ingested": len(results), "items": results}
 
 
 class SettingsUpdate(BaseModel):
@@ -268,4 +356,6 @@ def api_update_settings(req: SettingsUpdate):
             (json.dumps(req.watched_folders),),
         )
     conn.commit()
+    if req.watched_folders is not None:
+        _start_watcher()
     return {"status": "updated"}
