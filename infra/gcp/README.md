@@ -1,14 +1,33 @@
-# GCP Infrastructure Skeleton
+# GCP Infrastructure
 
-This directory holds the first-pass infrastructure definition for the cloud migration.
+Terraform sketch for the Content Intelligence Hub cloud backend: Cloud Run (API + worker), Cloud SQL, GCS, Cloud Tasks, Secret Manager.
 
-V1 targets:
-- Cloud Run API service
-- Cloud Run worker service
-- Cloud SQL instance
-- Cloud Storage bucket for uploads and artifacts
-- Secret Manager entries for provider credentials
-- Cloud Tasks queue for async job dispatch
+## Hardening defaults (this module)
 
-The Terraform files here are intentionally minimal and establish the core resource shape
-without locking the project into a full production rollout yet.
+| Area | Behavior |
+|------|----------|
+| **GCS** | Uniform bucket access + **public access prevention enforced** |
+| **Cloud SQL** | **`ssl_mode = ENCRYPTED_ONLY`** by default; backups optional; deletion protection off by default (toggle for prod) |
+| **Public SQL IP** | **`db_public_ipv4_enabled`** defaults true for simple dev; set **false** and use private networking / connector when ready |
+| **Worker** | Optional **`google_cloud_run_v2_service_iam_member`**: grant **`roles/run.invoker`** only to the Cloud Tasks service account (set **`grant_worker_invoker_to_tasks_sa`** and **`tasks_invoker_service_account_email`**) |
+
+The **API** service is still shaped for a **public** Cloud Run URL (magic-link and desktop client). Restrict CORS in the app with **`CIH_CLOUD_CORS_ALLOW_ORIGINS`**.
+
+## Application guardrails (`cloud/shared/config.py`)
+
+- **`CIH_CLOUD_ENVIRONMENT=production`**: rejects default magic-link/session secrets and rejects **`CIH_CLOUD_SKIP_WORKER_OIDC=true`**.
+- **Worker**: verifies **Cloud Tasks OIDC** JWT on `POST /tasks/jobs/{id}` unless **`CIH_CLOUD_SKIP_WORKER_OIDC=true`** (local debugging only).
+
+## Usage
+
+```bash
+cd infra/gcp
+terraform init
+terraform plan -var="project_id=YOUR_PROJECT"
+```
+
+Set **`grant_worker_invoker_to_tasks_sa=true`** and the tasks SA email after you create that account in IAM (or manage invoker bindings manually in Console).
+
+## Legacy note
+
+V1 files were minimal; re-run **`terraform plan`** before apply — SQL **`ssl_mode`** and bucket **PAP** may update existing resources.

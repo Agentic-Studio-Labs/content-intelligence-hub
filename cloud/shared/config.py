@@ -1,11 +1,12 @@
 from pathlib import Path
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = {"env_prefix": "CIH_CLOUD_"}
+    model_config = SettingsConfigDict(env_prefix="CIH_CLOUD_", extra="ignore")
 
+    environment: str = "development"
     port: int = 8484
     data_dir: Path = Path(__file__).resolve().parents[1] / ".data"
     storage_dir: Path | None = None
@@ -40,6 +41,10 @@ class Settings(BaseSettings):
     tasks_service_account_email: str = ""
     worker_timeout_seconds: int = 3600
 
+    cors_allow_origins: str = "*"
+    worker_oidc_audience: str = ""
+    skip_worker_oidc: bool = False
+
     @property
     def db_host_path(self) -> str:
         if self.db_host:
@@ -60,6 +65,31 @@ class Settings(BaseSettings):
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.object_root.mkdir(parents=True, exist_ok=True)
         self.models_dir.mkdir(parents=True, exist_ok=True)
+
+    def cors_origins_list(self) -> list[str]:
+        raw = self.cors_allow_origins.strip()
+        if raw == "*":
+            return ["*"]
+        return [o.strip() for o in raw.split(",") if o.strip()]
+
+    @model_validator(mode="after")
+    def production_guardrails(self):
+        env = self.environment.lower()
+        if env not in ("production", "prod"):
+            return self
+        if self.magic_link_secret == "dev-magic-link-secret":
+            raise ValueError(
+                "CIH_CLOUD_MAGIC_LINK_SECRET must not use the dev default when CIH_CLOUD_ENVIRONMENT=production",
+            )
+        if self.session_secret == "dev-session-secret":
+            raise ValueError(
+                "CIH_CLOUD_SESSION_SECRET must not use the dev default when CIH_CLOUD_ENVIRONMENT=production",
+            )
+        if self.skip_worker_oidc:
+            raise ValueError(
+                "CIH_CLOUD_SKIP_WORKER_OIDC must be false when CIH_CLOUD_ENVIRONMENT=production",
+            )
+        return self
 
 
 settings = Settings()

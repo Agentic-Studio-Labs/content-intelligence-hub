@@ -27,9 +27,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Content Intelligence Hub Cloud API", lifespan=lifespan)
+_origins = cloud_settings.cors_origins_list()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_origins,
+    allow_credentials=_origins != ["*"],
     allow_headers=["*"],
     allow_methods=["*"],
 )
