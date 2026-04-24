@@ -3,14 +3,15 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
+ENV PYTHONPATH=/app
 
 WORKDIR /app
 
-COPY cloud/pyproject.toml ./pyproject.toml
+COPY cloud/requirements.worker.txt ./requirements.worker.txt
 COPY cloud/api ./api
 COPY cloud/shared ./shared
 COPY cloud/workers ./workers
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir -r requirements.worker.txt
 
 CMD ["uvicorn", "workers.app:app", "--host", "0.0.0.0", "--port", "8080"]

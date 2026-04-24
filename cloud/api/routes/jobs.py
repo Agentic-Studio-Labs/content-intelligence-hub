@@ -80,4 +80,5 @@ def api_create_ingest_job(
         payload=req.model_dump(),
         created_by=user["id"],
     )
-    return job
+    dispatch_job(conn, job["id"], "ingest")
+    return get_job(conn, job["id"])
