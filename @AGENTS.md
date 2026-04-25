@@ -6,7 +6,7 @@ This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get sta
 
 1. Read **`CLAUDE.md`** (repo map, GCP handoff, magic link / Resend, Terraform caveats).
 2. Run **`bd ready --json`** (or **`bd ready`**) and pick an open issue; **`bd show <id>`** for context.
-3. **GCP prod** follow-ups are tracked in beads (finish Artifact Registry + Cloud Run apply; mount Resend secret on **cih-api**; merge feature branch).
+3. **GCP prod** follow-ups are tracked in beads (finish Artifact Registry + Cloud Run apply; mount Resend secret on **cih-api**; verify magic-link email).
 
 ## Quick Reference
 
